@@ -3,6 +3,10 @@ import json
 import csv
 import tkinter as tk
 from tkinter import filedialog
+from tkinter import scrolledtext
+import pandas as pd
+import matplotlib.pyplot as plt
+
 
 # Load version.json or versioninfo.json
 def load_version_json(path):
@@ -116,19 +120,64 @@ def main():
 
     print(f"\n Total size of all .usd files: {format_size(total_size)}")
 
-    # Export to CSV
-    csv_path = os.path.splitext(file_path)[0] + "_usd_sizes.csv"
+    # # Export to CSV
+    # csv_path = os.path.splitext(file_path)[0] + "_usd_sizes.csv"
 
-    with open(csv_path, mode='w', newline='', encoding='utf-8') as csv_file:
-        writer = csv.writer(csv_file, delimiter=';')  # Use ; as separator
-        writer.writerow(["usdc_filename", "size_gb"])
-        for path, info in usdc_data.items():
-            writer.writerow([
-                os.path.basename(path),                              # only the filename
-                f"{info['size_gb']:.3f}".replace('.', ',')           # GB with comma decimal
-            ])
+    # with open(csv_path, mode='w', newline='', encoding='utf-8') as csv_file:
+    #     writer = csv.writer(csv_file, delimiter=';')  # Use ; as separator
+    #     writer.writerow(["usdc_filename", "size_gb"])
+    #     for path, info in usdc_data.items():
+    #         writer.writerow([
+    #             os.path.basename(path),                              # only the filename
+    #             f"{info['size_gb']:.3f}".replace('.', ',')           # GB with comma decimal
+    #         ])
 
-    print(f"\n CSV exported to: {csv_path}")
+    # print(f"\n CSV exported to: {csv_path}")
+    df = pd.DataFrame.from_dict(usdc_data, orient='index')
+    df.reset_index(inplace=True)
+    df.rename(columns={'index': 'filepath'}, inplace=True)
+    top_10 = df.sort_values(by='size_bytes', ascending=False).head(10)
+    print("\n📊 Top 10 plus gros fichiers .usd/.usdc/.usda/.vdb :\n")
+    print(top_10[['filepath', 'size_gb']])
+
+    # top_10 = top_10[::-1]
+
+    # plt.figure(figsize=(12, 6))
+    # plt.bar(top_10['filepath'], top_10['size_gb'], color='salmon')
+    # plt.ylabel('Taille (en GB)')
+    # plt.title('Top 10 des plus gros fichiers USD')
+    # plt.xticks(rotation=45, ha='right')
+    # plt.tight_layout()
+    # plt.show()
+
+    display_window = tk.Tk()
+    display_window.title("Top 10 fichiers USD par taille")
+
+    text_area = scrolledtext.ScrolledText(display_window, wrap=tk.WORD, width=200, height=40, font=("Consolas", 10))
+    text_area.pack(padx=10, pady=10)
+
+    for _, row in top_10.iterrows():
+        path = row['filepath']
+        size = row['size_gb']
+        size_str = f"{size:.2f} GB"
+
+        if size < 0.75:
+            color = "green"
+        elif size < 5:
+            color = "orange"
+        else:
+            color = "red"
+
+        text_area.insert(tk.END, f"{path} - {size_str}\n", color)
+
+    text_area.tag_config("green", foreground="green")
+    text_area.tag_config("orange", foreground="orange")
+    text_area.tag_config("red", foreground="red")
+
+    text_area.configure(state='disabled')  
+
+    display_window.mainloop()
+
 
 
 if __name__ == "__main__":
